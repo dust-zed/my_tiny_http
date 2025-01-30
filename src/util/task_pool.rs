@@ -50,7 +50,8 @@ impl<'a> Drop for Registration<'a> {
 impl TaskPool {
     
     pub fn new() -> TaskPool {
-        let pool = TaskPool{sharing: Arc::new(
+        let pool = TaskPool {
+            sharing: Arc::new(
             Sharing {
                 todo: Mutex::new(VecDeque::new()),
                 condvar: Condvar::new(),
@@ -62,6 +63,7 @@ impl TaskPool {
         for _ in 0..MIN_THREADS {
             pool.add_thread(None);
         }
+
         pool
     }
 
@@ -83,53 +85,51 @@ impl TaskPool {
         let sharing = self.sharing.clone();
 
         thread::spawn(move || {
-            //活跃线程加1
+            //存活线程加1
             let _active_guard = Registration::new(&sharing.active_workers);
 
-            //执行线程的初始任务
+            //执行线程初始函数
             if let Some(mut f) = intial_fn {
                 f();
             }
 
             loop {
+                //循环，添加的线程执行完初始函数，从任务对列里取任务执行
                 let mut task: Box<dyn FnMut() + Send> = {
                     let mut todo = sharing.todo.lock().unwrap();
                     let task;
-                    //不断的去取任务队列中的任务
                     loop {
-                        //取到队列的任务
+                        //取任务队列的任务
                         if let Some(pop_task) = todo.pop_front() {
                             task = pop_task;
                             break;
-                        };
-
-                        //任务队列为空，需要考虑这个线程的存活策略
+                        }
+                        //任务队列为空
                         let _idle_guard = Registration::new(&sharing.idle_workers);
-
-                        let received = 
-                            if sharing.active_workers.load(Ordering::Acquire) <= MIN_THREADS {
-                                //如果线程数不满足线程池的最小线程数，不会结束此线程
-                                todo = sharing.condvar.wait(todo).unwrap();
-                                true
-                            } else {
-                                //线程数超出线程池的最小需求，若5000millis没有任务处理，后续会结束此线程
-                                let (new_lock, waitres) = sharing
-                                    .condvar
-                                    .wait_timeout(todo, Duration::from_millis(5000))
-                                    .unwrap();
-                                todo = new_lock;
-                                !waitres.timed_out()
-                            };
+                        let received = if sharing.active_workers.load(Ordering::Relaxed) <= MIN_THREADS {
+                            todo = sharing
+                                .condvar
+                                .wait(todo)
+                                .unwrap();
+                            true
+                        } else {
+                            let (new_todo, waitres) = sharing
+                                .condvar
+                                .wait_timeout(todo, Duration::from_millis(5000))
+                                .unwrap();
+                            todo = new_todo;
+                            !waitres.timed_out()
+                        };
                         if !received && todo.is_empty() {
-                            //结束此线程
+                            //当不是要一直存在的线程，在5000ms内获取不到任务，结束线程
                             return;
                         }
                     }
                     task
                 };
+                //执行任务
                 task();
             }
-
         });
     }
 }

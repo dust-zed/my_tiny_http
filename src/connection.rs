@@ -1,4 +1,5 @@
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
+#[cfg(unix)]
 use std::os::unix::net::{self as unix_net, UnixStream};
 use std::path::PathBuf;
 
@@ -151,15 +152,14 @@ impl ListenAddr {
         match self {
             Self::IP(addr) => Some(addr),
             #[cfg(unix)]
-            Self::Unix(_) => None,
+            Self::Unix(_) => None
         }
     }
 
-    #[cfg(unix)]
     pub fn to_unix(self) -> Option<unix_net::SocketAddr> {
         match self {
             Self::IP(_) => None,
-            Self::Unix(addr) => Some(addr),
+            Self::Unix(addr) => Some(addr)
         }
     }
 }

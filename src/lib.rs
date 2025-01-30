@@ -2,6 +2,7 @@ use connection::{ConfigListenAddr, ListenAddr, Listener};
 use std::error::Error;
 use std::io::Error as IoError;
 use std::net::ToSocketAddrs;
+use std::sync::atomic::Ordering;
 use std::sync::{atomic::AtomicBool, Arc};
 use std::thread;
 use util::messages_queue::MessageQueue;
@@ -12,6 +13,8 @@ mod connection;
 mod request;
 mod util;
 mod log;
+mod common;
+mod response;
 pub struct Server {
     //只要服务还存在就为false
     //设置为true时，所有子任务将在几百毫秒内关闭
@@ -56,7 +59,7 @@ impl Server {
     ///builds a new server that listens on specific address
     pub fn new(config: ServerConfig) -> Result<Server, Box<dyn Error + Send + Sync + 'static>> {
         let listener = config.addr.bind()?;
-        Self::f
+        Self::from_listener(listener, config.ssl)
     }
 
     /// builds a new server using specified TCP listener.
@@ -67,7 +70,8 @@ impl Server {
         listener: L,
         ssl_config: Option<SslConfig>
     ) -> Result<Server, Box<dyn Error + Send + Sync + 'static>> {
-        let listener = listener.into();
+
+        let listener: Listener = listener.into();
         //building the "close" variable
         let close_trigger = Arc::new(AtomicBool::new(false));
 
@@ -79,7 +83,52 @@ impl Server {
         };
 
         //building the SSL capabilities
-        //todo!()
+        //todo!() 暂时是copy来的
+        #[cfg(any(
+            all(feature = "ssl-openssl", feature = "ssl-rustls"),
+            all(feature = "ssl-openssl", feature = "ssl-native-tls"),
+            all(feature = "ssl-native-tls", feature = "ssl-rustls"),
+        ))]
+
+        compile_error!(
+            "Only one feature from 'ssl-openssl', 'ssl-rustls', 'ssl-native-tls' can be enabled at the same time"
+        );
+        #[cfg(not(any(
+            feature = "ssl-openssl",
+            feature = "ssl-rustls",
+            feature = "ssl-native-tls"
+        )))]
+        type SslContext = ();
+
+        #[cfg(any(
+            feature = "ssl-openssl",
+            feature = "ssl-rustls",
+            feature = "ssl-native-tls"
+        ))]
+        type SslContext = crate::ssl::SslContextImpl;
+        let ssl: Option<SslContext> = {
+            match ssl_config {
+                #[cfg(any(
+                    feature = "ssl-openssl",
+                    feature = "ssl-rustls",
+                    feature = "ssl-native-tls"
+                ))]
+                Some(config) => Some(SslContext::from_pem(
+                    config.certificate,
+                    Zeroizing::new(config.private_key),
+                )?),
+                #[cfg(not(any(
+                    feature = "ssl-openssl",
+                    feature = "ssl-rustls",
+                    feature = "ssl-native-tls"
+                )))]
+                Some(_) => return Err(
+                    "Building a server with SSL requires enabling the `ssl` feature in tiny-http"
+                        .into(),
+                ),
+                None => None,
+            }
+        };
 
         // creating a task where server.accept() is continuously called
         // and ClientConnection objects are pushed in the messages queue
@@ -88,9 +137,19 @@ impl Server {
         let inside_messages = messages.clone();
         thread::spawn(move || {
             // a tasks pool is used to dispatch the connections into threads
-            
+            let task_pool = util::task_pool::TaskPool::new();
+
+            log::debug!("Running accept thread");
+            while !inside_close_trigger.load(Ordering::Relaxed) {
+                let new_client = match server.accept() {
+                    Ok((sock, _ )) => {
+
+                    },
+                    Err(e) => Err(e),
+                };
+            }
         });
-        Ok(())
+        
     }
 }
 
