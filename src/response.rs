@@ -103,7 +103,7 @@ where
     }
 
     //sperator between header and data
-    write!(&mut writer, "/r/n");
+    write!(&mut writer, "\r\n");
 
     Ok(())
 }
