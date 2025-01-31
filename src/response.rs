@@ -51,7 +51,9 @@ pub type ResponseBox = Response<Box<dyn Send + Read>>;
 /// Note that only *supported* encoding are listed here.
 #[derive(Copy, Clone)]
 enum TransferEncoding {
+    //无编码
     Identity,
+    //分块传输编码
     Chunked,
 }
 
@@ -340,10 +342,13 @@ where
             self.chunked_threshold(),
         ));
 
-        //add 'Data' if not in the headers
+        //add 'Date' if not in the headers
         if !self.headers.iter().any(|h| h.field.equiv("Date")) {
-            self.headers.insert(0, build_date_header());
-        };
+            self.headers.insert(
+                0,
+                build_date_header()
+            );
+        }
 
         //add `Server` if not in the headers
         if !self.headers.iter().any(|h| h.field.equiv("Server")) {
@@ -387,6 +392,7 @@ where
                 100..=199 | 204 | 304 => true,
                 _ => false,
             };
+            
         //preparing headers for transfer
         match transfer_encoding {
             Some(TransferEncoding::Chunked) => self
