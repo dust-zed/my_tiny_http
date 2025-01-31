@@ -3,6 +3,7 @@ pub(crate) mod messages_queue;
 pub(crate) mod task_pool;
 mod custom_stream;
 mod fused_reader;
+mod equal_reader;
 
 /// Parses a the value of a header.
 /// Suitable for `Accept-*`, `TE`, etc.
