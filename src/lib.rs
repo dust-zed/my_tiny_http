@@ -23,6 +23,7 @@ use std::time::Duration;
 use util::messages_queue::MessageQueue;
 
 pub use request::Request;
+pub use response::Response;
 
 mod client;
 mod common;

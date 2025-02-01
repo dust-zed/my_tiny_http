@@ -126,12 +126,12 @@ where
 
     let reader = if connection_upgrade {
         Box::new(source_data) as Box<dyn Send + Read + 'static>
-    } else if let Some(content_length) = content_length{
+    } else if let Some(content_length) = content_length {
         if content_length == 0 {
             Box::new(io::empty()) as Box<dyn Read + Send + 'static>
         } else if content_length <= 1024 && !expects_continue {
 
-            let mut buffer = vec![0u8; 1024];
+            let mut buffer = vec![0u8; content_length];
             let mut offset = 0;
 
             while offset != content_length {

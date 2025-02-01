@@ -101,11 +101,11 @@ where
         writer.write_all(header.field.as_str().as_ref())?;
         write!(&mut writer, ": ")?;
         writer.write_all(header.value.as_str().as_ref())?;
-        write!(&mut writer, "\r\n");
+        write!(&mut writer, "\r\n")?;
     }
 
     //sperator between header and data
-    write!(&mut writer, "\r\n");
+    write!(&mut writer, "\r\n")?;
 
     Ok(())
 }

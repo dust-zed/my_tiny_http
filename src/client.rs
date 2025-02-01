@@ -182,7 +182,7 @@ impl Iterator for ClientConnection {
 
                 Err(ReadError::ExpectationFailed(ver)) => {
                     let writer = self.sink.next().unwrap();
-                    let response = Response::empty(StatusCode(407));
+                    let response = Response::empty(StatusCode(417));
                     response
                         .raw_print(writer, ver, &[], true, None)
                         .ok();
