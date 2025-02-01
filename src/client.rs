@@ -7,7 +7,6 @@ use std::str::FromStr;
 use ascii::AsciiString;
 
 use crate::common::Method;
-use crate::response;
 use crate::Request;
 use crate::{
     common::HTTPVersion,

@@ -192,7 +192,7 @@ impl Display for Header {
 }
 
 #[derive(Debug, Clone, Eq)]
-struct HeaderField(AsciiString);
+pub struct HeaderField(AsciiString);
 
 impl HeaderField {
     pub fn from_bytes<B>(bytes: B) -> Result<HeaderField, FromAsciiError<B>>
