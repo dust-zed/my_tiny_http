@@ -63,7 +63,7 @@ impl<R> Drop for NotifyOnDrop<R> {
 }
 
 #[derive(Debug)]
-enum RequestCreationError {
+pub enum RequestCreationError {
     ExpectationFailed,
     CreationIoError(IoError),
 }

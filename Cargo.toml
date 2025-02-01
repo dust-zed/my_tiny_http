@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-#default = ["log"]
-default = ["log", "ssl-openssl"]
+default = ["log"]
+#default = ["log", "ssl-openssl"]
 ssl = ["ssl-openssl"]
 ssl-openssl = ["openssl", "zeroize"]
 ssl-rustls = ["rustls", "rustls-pemfile", "zeroize"]

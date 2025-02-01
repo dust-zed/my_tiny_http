@@ -1,4 +1,4 @@
-use std::{io::Result as IoResult, net::{Shutdown, SocketAddr}};
+use std::{io::{Read, Result as IoResult, Write}, net::{Shutdown, SocketAddr}};
 use crate::connection::Connection;
 #[cfg(any(
     feature = "ssl-openssl",
@@ -74,4 +74,112 @@ impl Stream {
             Stream::Https(ssl_stream) => ssl_stream.shutdown(how)
         }
     } 
+}
+
+impl Read for Stream {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        match self {
+            Stream::Http(tcp_stream) => tcp_stream.read(buf),
+            #[cfg(any(
+                feature = "ssl-openssl",
+                feature = "ssl-rustls",
+                feature = "ssl-native-tls"
+            ))]
+            Stream::Https(ssl_stream) => ssl_stream.read(buf),
+        }
+    }
+}
+
+impl Write for Stream {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        match self {
+            Stream::Http(tcp_stream) => tcp_stream.write(buf),
+            #[cfg(any(
+                feature = "ssl-openssl",
+                feature = "ssl-rustls",
+                feature = "ssl-native-tls"
+            ))]
+            Stream::Https(ssl_stream) => ssl_stream.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> IoResult<()> {
+        match self {
+            Stream::Http(tcp_stream) => tcp_stream.flush(),
+            #[cfg(any(
+                feature = "ssl-openssl",
+                feature = "ssl-rustls",
+                feature = "ssl-native-tls"
+            ))]
+            Stream::Https(ssl_stream) => ssl_stream.flush(),
+        }
+    }
+}
+pub struct RefinedTcpStream {
+    stream: Stream,
+    close_read: bool,
+    close_write: bool,
+}
+
+impl RefinedTcpStream {
+    pub(crate) fn new<S>(stream: S) -> (RefinedTcpStream, RefinedTcpStream)
+    where
+        S: Into<Stream>,
+    {
+        let stream: Stream = stream.into();
+
+        let (read, write) = (stream.clone(), stream);
+
+        let read = RefinedTcpStream {
+            stream: read,
+            close_read: true,
+            close_write: false,
+        };
+
+        let write = RefinedTcpStream {
+            stream: write,
+            close_read: false,
+            close_write: true,
+        };
+
+        (read, write)
+    }
+
+    /// Returns true if this struct wraps around a secure connection.
+    #[inline]
+    pub(crate) fn secure(&self) -> bool {
+        self.stream.secure()
+    }
+
+    pub(crate) fn peer_addr(&mut self) -> IoResult<Option<SocketAddr>> {
+        self.stream.peer_addr()
+    }
+}
+
+impl Drop for RefinedTcpStream {
+    fn drop(&mut self) {
+        if self.close_read {
+            self.stream.shutdown(Shutdown::Read).ok();
+        }
+
+        if self.close_write {
+            self.stream.shutdown(Shutdown::Write).ok();
+        }
+    }
+}
+
+impl Read for RefinedTcpStream {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+        self.stream.read(buf)
+    }
+}
+
+impl Write for RefinedTcpStream {
+    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+        self.stream.write(buf)
+    }
+
+    fn flush(&mut self) -> IoResult<()> {
+        self.stream.flush()
+    }
 }
