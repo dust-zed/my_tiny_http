@@ -41,6 +41,7 @@ impl From<unix_net::UnixListener> for Listener {
 }
 
 /// Unified connection. Either a [`TcpStream`] or [`std::os::unix::net::UnixStream`].
+#[derive(Debug)]
 pub(crate) enum Connection {
     Tcp(TcpStream),
     #[cfg(unix)]

@@ -2,8 +2,10 @@ use std::str::FromStr;
 pub(crate) mod messages_queue;
 pub(crate) mod task_pool;
 mod custom_stream;
-mod fused_reader;
-mod equal_reader;
+pub(crate) mod fused_reader;
+pub(crate) mod equal_reader;
+pub mod refined_tcp_stream;
+pub mod sequential;
 
 /// Parses a the value of a header.
 /// Suitable for `Accept-*`, `TE`, etc.

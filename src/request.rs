@@ -7,6 +7,8 @@ use chunked_transfer::Decoder;
 
 use crate::common::{HTTPVersion, Header, Method, StatusCode};
 use crate::response::{self, Response};
+use crate::util::equal_reader::EqualReader;
+use crate::util::fused_reader::FusedReader;
 
 pub struct Request {
 
@@ -89,7 +91,7 @@ where
 {
     let transfer_encoding = headers
         .iter()
-        .find(|&&h| h.field.equiv("Transfer-Encoding"))
+        .find(|h| h.field.equiv("Transfer-Encoding"))
         .map(|h| h.value.clone());
 
     let content_length = if transfer_encoding.is_some() {
@@ -97,14 +99,14 @@ where
     } else {
         headers
             .iter()
-            .find(|&&h| h.field.equiv("Content-Length"))
+            .find(|h| h.field.equiv("Content-Length"))
             .and_then(|h| FromStr::from_str(h.value.as_str()).ok())
     };
 
     let expects_continue = {
         match headers
             .iter()
-            .find(|&&h| h.field.equiv("Expect"))
+            .find(|h| h.field.equiv("Expect"))
             .map(|h| h.value.as_str()) {
                 None => false,
                 Some(v) if v.eq_ignore_ascii_case("100-continue") => true,
@@ -115,7 +117,7 @@ where
     let connection_upgrade = {
         match headers
             .iter()
-            .find(|&&h| h.field.equiv("Connection"))
+            .find(|h| h.field.equiv("Connection"))
             .map(|h| h.value.as_str()) {
                 Some(v) if v.to_ascii_lowercase().contains("upgrade") => true,
                 _ => false

@@ -12,6 +12,7 @@ pub use request::Request;
 mod connection;
 mod request;
 mod util;
+mod ssl;
 mod log;
 mod common;
 mod response;
