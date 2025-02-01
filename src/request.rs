@@ -217,7 +217,29 @@ impl Request {
         protocol: &str,
         response: Response<R>
     ) -> Box<dyn ReadWrite + Send> {
-        todo!()
+        use crate::util::custom_stream::CustomStream;
+
+        response
+            .raw_print(
+                self.response_writer.as_mut().unwrap().by_ref(),
+                self.http_version.clone(),
+                &self.headers,
+                false, 
+                Some(protocol)
+            )
+            .ok();
+        self.response_writer.as_mut().unwrap().flush().ok();
+
+        let stream = CustomStream::new(self.extract_reader_impl(), self.extract_writer_impl());
+        if let Some(sender) = self.notify_when_responded.take() {
+            let stream = NotifyOnDrop {
+                sender,
+                inner: stream
+            };
+            Box::new(stream) as Box<dyn ReadWrite + Send>
+        } else {
+            Box::new(stream) as Box<dyn ReadWrite + Send> 
+        }
     }
 
     #[inline]
@@ -239,8 +261,14 @@ impl Request {
     }
 
     #[inline]
-    pub fn as_writer(&mut self) -> Box<dyn Write + Send + 'static> {
-        todo!()
+    pub fn into_writer(&mut self) -> Box<dyn Write + Send + 'static> {
+        use std::mem;
+
+        assert!(self.response_writer.is_some());
+
+        let mut writer = None;
+        mem::swap(&mut self.response_writer, &mut writer);
+        writer.unwrap()
     }
 
     fn extract_writer_impl(&mut self) -> Box<dyn Write + Send + 'static> {

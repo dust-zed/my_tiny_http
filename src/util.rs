@@ -1,7 +1,7 @@
 use std::str::FromStr;
 pub(crate) mod messages_queue;
 pub(crate) mod task_pool;
-mod custom_stream;
+pub mod custom_stream;
 pub(crate) mod fused_reader;
 pub(crate) mod equal_reader;
 pub mod refined_tcp_stream;
